@@ -45,7 +45,7 @@ $ docker run --rm -it --privileged --runtime nvidia --shm-size=16g \
 All subsequent steps are performed within the container.
 
 Installing deformable_aggregation (first time only)
-Go to the repository sparse4dv3/projects/mmdet3d_plugin/ops/ and run the following command:(container)$ sudo python3 setup.py develop --user
+Go to the repository sparse4dv3/projects/mmdet3d_plugin/ops/ and run the following command:(container)$ sudo python3 setup.py develop 
 
 Now go back to ./sparse4dv3 and do:
 mkdir ckpt
@@ -122,6 +122,7 @@ then do:
 colcon build --symlink-install --packages-select sparse_msgs sparse4dv3
 source install/setup.bash
 
+please update sys.path.insert in src/sparse4dv3/sparse_node.py
 check & verify with: ros2 interface show sparse_msgs/msg/CustomTFMessage
 
 To run inference on a bagfile( this repo assumes you already have a ros2 bagfile)
