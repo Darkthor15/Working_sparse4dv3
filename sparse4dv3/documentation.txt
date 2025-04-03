@@ -1,0 +1,150 @@
+Follow these steps:
+
+Docker Setup: 
+
+#Add user to docker group
+#If you get the following error when running docker without sudo, add the user to the docker group.
+$ docker ps
+docker: Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.s
+
+#Check if docker group exists
+cat /etc/group | grep docker
+
+#Create the docker group if it does not exist
+sudo groupadd docker
+
+#Add user to docker group
+Change user to any username
+sudo usermod -aG docker user
+
+.bashrc configuration
+~/.bashrc To identify inside and outside the Docker container, add
+the following:
+When you enter the container, the text changes from white to orange.
+
+if [ -f /.dockerenv ]; then
+PS1='\[\033[01;33m\](container) '$PS1
+fi
+
+Building a Docker image
+sparse4dv3/ Go to and run the following command:
+$ cd docker
+$ docker build -t sparse4dv3_nuscenes:ros .
+Starting a Docker container
+$HOME If data is stored anywhere other than -v the
+For example, /mnt/external if you have a directory containing NuScenes datasets, -v
+/mnt/external/data:/mnt/external/data add the option
+If you use Nsight Systems in the container, add the folder path for Nsight Systems.
+On Jetson Orin, opt/nvidia/ there should be a folder called Nsight Systems.
+$ docker run --rm -it --privileged --runtime nvidia --shm-size=16g \
+--net=host -e DISPLAY=$DISPLAY \
+-v /tmp/.x11-unix:/tmp/.x11-unix \
+-v $HOME:$HOME -v /mnt/external/data:/mnt/external/data \
+-v /opt/nvidia:/opt/nvidia \
+--name sparse4dv3_nuscenes sparse4dv3_nuscenes:ros bash
+All subsequent steps are performed within the container.
+
+Installing deformable_aggregation (first time only)
+Go to the repository sparse4dv3/projects/mmdet3d_plugin/ops/ and run the following command:(container)$ sudo python3 setup.py develop --user
+
+Now go back to ./sparse4dv3 and do:
+mkdir ckpt
+wget https://download.pytorch.org/models/resnet50-19c8e357.pth -O ckpt/resnet50-19c8e357.pth
+
+(or here are the links: sparse4dv3_r50.pth , resnet50-19c8e357.pth  (https://github.com/HorizonRobotics/Sparse4D/releases/download/v3.0/sparse4dv3_r50.pth   &  https://download.pytorch.org/models/resnet50-19c8e357.pth )
+
+After this create a data folder (mkdir data) in ./sparse4dv3 and paste nuscenes data there and the structure should be like: 
+
+The Dataset folder structure is as follows:
+sparse4dv3/data/nuscenes/
+├── v1.0-mini/
+│
+├── visibility.json
+│
+├── sensor.json
+│
+├── ...
+├── sweeps/
+│
+├── CAMERA_FRONT/
+│
+│
+├── ○○.png
+│
+│
+├── ...
+│
+├── CAMERA_FRONT_RIGHT/
+│
+│
+├── ○○.png
+│
+│
+├── ...
+│
+├── ...
+├── samples/
+│
+├── CAMERA_FRONT/│
+│
+├──
+├──
+│
+├── ○○.png
+│
+├── ...
+├── CAMERA_FRONT_RIGHT/
+│
+├── ○○.png
+│
+├── ...
+├── ...
+maps/
+LICENSE.txt
+
+
+and do this: ln -s path/to/nuscenes-mini data/nuscenes
+
+Creating a data loader file (first time only):
+pkl_path="data/nuscenes_anno_pkls"
+mkdir -p ${pkl_path}
+python3 tools/nuscenes_converter.py --version v1.0-mini --info_prefix ${pkl_path}/nuscenes-mini
+
+Now go to data/nuscnenes_anno_pkls and change the name of pkl file as : nuscenes_infos_val.pkl
+nuscenes_infos_train.pkl
+
+
+After this do: python3 tools/anchor_generator.py --ann_file ${pkl_path}/nuscenes_infos_train.pkl
+
+and change the name of the file generated as: nuscenes_kmeans900_train.npy
+
+then do: 
+colcon build --symlink-install --packages-select sparse_msgs sparse4dv3
+source install/setup.bash
+
+check & verify with: ros2 interface show sparse_msgs/msg/CustomTFMessage
+
+To run inference on a bagfile( this repo assumes you already have a ros2 bagfile)
+
+run the bag file in a separate terminal: ros2 bag play example.bag (replace example with your bag file name)
+
+& simultaneously run:
+ros2 launch launch/sparse_node_launch.py
+
+&run:
+rviz2
+in a seperate terminal to observe inference!
+/
+
+( there are 2 sparse_node code in the src/sparse4dv3/sparse4dv3 one is default code with hardcoded values of nuscenes and one has dynamic values from tf if you have it in correct format you can switch to any by changing its name to sparse_node.py
+Moreover in tfmsg_node.py there is an if line for only odom message comment or use it according to your own data!
+
+ensure config file in projects/configs/spa... has config according to your bag file!
+
+new_topics_left.py : rectifies camera_front_left image and also publishes new camerainfo accordingly   (only run in case you dont have a rectified image in your bag file)
+
+new_topics_right.py : rectifies camera_front_right image and also publishes new camerainfo accordingly   (only run in case you dont have a rectified image in your bag file)
+
+if you wish to change the confidence score please change the score_threshold variable in decoder.py at /projects/mmdet3d_plugin/models/detection3d/decoder.py 
+
+
